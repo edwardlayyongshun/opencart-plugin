@@ -209,12 +209,14 @@ class ControllerPaymentHelloPay extends Controller
 
             $response = $this->helloPay->parseNotificationPayload($postData);
 
-            if ($response) {
-                if (array_key_exists($response->getNewStatus(), $statusMap)) {
-                    $this->model_checkout_order->addOrderHistory(
-                        $response->getMerchantReferenceId(),
-                        $statusMap[$response->getNewStatus()]
-                    );
+            if ($response && is_array($response)) {
+                foreach ($response as $item) {
+                    if (array_key_exists($item->getNewStatus(), $statusMap)) {
+                        $this->model_checkout_order->addOrderHistory(
+                            $item->getMerchantReferenceId(),
+                            $statusMap[$item->getNewStatus()]
+                        );
+                    }
                 }
             }
         }

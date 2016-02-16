@@ -245,7 +245,12 @@ class HelloPay
             return false;
         }
 
-        return new NotificationData($decodedData[0]);
+        $returnData = [];
+        foreach ($decodedData as $item) {
+            $returnData[] = new NotificationData($item);
+        }
+
+        return $returnData;
     }
 
     /**

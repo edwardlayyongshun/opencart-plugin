@@ -153,6 +153,7 @@ class ControllerPaymentHelloPay extends Controller
                     break;
                 case 'Failed':
                     $order_status_id = $this->config->get('hellopay_failed_status_id');
+                    $returnUrl = $this->url->link('checkout/failure');
                     break;
                 case 'Pending':
                     $order_status_id = $this->config->get('hellopay_pending_status_id');
@@ -228,6 +229,8 @@ class ControllerPaymentHelloPay extends Controller
     protected function init()
     {
         require_once(DIR_SYSTEM . 'library/helloPay/autoload.php');
+
+        $this->load->language('payment/hellopay');
 
         $this->helloPay = new \HelloPay\HelloPay(
             array(

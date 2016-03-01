@@ -66,13 +66,13 @@ class ControllerPaymentHelloPay extends Controller
         $data['billingAddress']['firstName'] = $order_info['payment_firstname'];
         $data['billingAddress']['lastName'] = $order_info['payment_lastname'];;
         $data['billingAddress']['addressLine1'] = $order_info['payment_address_1'];
-        $data['billingAddress']['province'] = "";
+        $data['billingAddress']['province'] = '';
         $data['billingAddress']['city'] = $order_info['payment_city'];
         $data['billingAddress']['country'] = $country_info['iso_code_2'];
         $data['billingAddress']['mobilePhoneNumber'] = $order_info['telephone'];
-        $data['billingAddress']['houseNumber'] = "";
+        $data['billingAddress']['houseNumber'] = '';
         $data['billingAddress']['addressLine2'] = $order_info['payment_address_2'];
-        $data['billingAddress']['district'] = '';
+        $data['billingAddress']['district'] = $order_info['payment_postcode'];
         $data['billingAddress']['zip'] = $order_info['payment_postcode'];
 
         if ($this->cart->hasShipping()) {
@@ -84,9 +84,9 @@ class ControllerPaymentHelloPay extends Controller
             $data['shippingAddress']['city'] = $order_info['shipping_city'];
             $data['shippingAddress']['country'] = $country_info['iso_code_2'];
             $data['shippingAddress']['mobilePhoneNumber'] = $order_info['telephone'];
-            $data['shippingAddress']['houseNumber'] = "";
+            $data['shippingAddress']['houseNumber'] = '';
             $data['shippingAddress']['addressLine2'] = $order_info['shipping_address_2'];
-            $data['shippingAddress']['district'] = "";
+            $data['shippingAddress']['district'] = $order_info['payment_postcode'];
             $data['shippingAddress']['zip'] = $order_info['shipping_postcode'];
         } else {
             $data['shippingAddress'] = $data['billingAddress'];
@@ -96,8 +96,8 @@ class ControllerPaymentHelloPay extends Controller
         $data['consumerData']['emailAddress'] = $order_info['email'];;
         $data['consumerData']['country'] = $country_info['iso_code_2'];
         $data['consumerData']['language'] = $order_info['language_code'];
-        $data['consumerData']['dateOfBirth'] = "";
-        $data['consumerData']['gender'] = "";
+        $data['consumerData']['dateOfBirth'] = '';
+        $data['consumerData']['gender'] = '';
         $data['consumerData']['ipAddress'] = $order_info['ip'];
         $data['consumerData']['name'] = $order_info['payment_firstname'] . ' ' . $order_info['payment_lastname'];
         $data['consumerData']['firstName'] = $order_info['payment_firstname'];
@@ -142,44 +142,53 @@ class ControllerPaymentHelloPay extends Controller
 
         $status = $this->request->get['paymentStatus'];
 
-        $order_status_id = $this->config->get('config_order_status_id');
+        $order_status_id = $this->config->get('hellopay_order_status_id');
         $returnUrl = $this->url->link('checkout/success');
 
-        if ($this->session->data['order_id'] > 0) {
-            switch ($status) {
-                case 'Cancelled':
-                    $order_status_id = $this->config->get('hellopay_canceled_status_id');
-                    $returnUrl = $this->url->link('checkout/checkout');
-                    break;
-                case 'Failed':
-                    $order_status_id = $this->config->get('hellopay_failed_status_id');
-                    $returnUrl = $this->url->link('checkout/failure');
-                    break;
-                case 'Pending':
-                    $order_status_id = $this->config->get('hellopay_pending_status_id');
-                    break;
-                case 'Success':
-                    try {
-                        // query the status of the purchase first
-                        $response = $this->helloPay->getTransactionEvents(array(
-                            'transactionId' => $this->session->data[static::HELLOPAY_PURCHASE_ID],
-                            'transactionType' => 'Purchase'
-                        ));
+        // only update for helloPay transaction
+        if (isset($this->session->data[static::HELLOPAY_PURCHASE_ID])
+            && isset($this->session->data['order_id'])
+            && $this->session->data['order_id'] > 0
+        ) {
+            $order_info = $this->model_checkout_order->getOrder($this->session->data['order_id']);
 
-                        if ($response && $response->isCompleted()) {
-                            $order_status_id = $this->config->get('hellopay_completed_status_id');
-                        } else {
-                            $this->log->write('helloPay :: ERROR FETCHING TRANSACTION EVENTS! ' . $this->helloPay->getLastMessage());
+            // the notification may come earlier then we have to check the order status before updating
+            if ($order_info['order_status_id'] != $this->config->get('hellopay_completed_status_id')) {
+                switch ($status) {
+                    case 'Cancelled':
+                        $order_status_id = $this->config->get('hellopay_canceled_status_id');
+                        $returnUrl = $this->url->link('checkout/checkout');
+                        break;
+                    case 'Failed':
+                        $order_status_id = $this->config->get('hellopay_failed_status_id');
+                        $returnUrl = $this->url->link('checkout/failure');
+                        break;
+                    case 'Pending':
+                        $order_status_id = $this->config->get('hellopay_pending_status_id');
+                        break;
+                    case 'Success':
+                        try {
+                            // query the status of the purchase first
+                            $response = $this->helloPay->getTransactionEvents(array(
+                                'transactionId' => $this->session->data[static::HELLOPAY_PURCHASE_ID],
+                                'transactionType' => 'Purchase'
+                            ));
+
+                            // query back to helloPay to early check whether the purchase is completed or not
+                            if ($response && $response->isCompleted()) {
+                                $order_status_id = $this->config->get('hellopay_completed_status_id');
+                            }
+                        } catch (\HelloPay\Exceptions\HelloPaySDKException $e) {
+                            $this->log->write('helloPay :: ERROR FETCHING TRANSACTION EVENTS! ' . $e->getMessage());
                         }
-                    } catch (\HelloPay\Exceptions\HelloPaySDKException $e) {
-                        $this->log->write('helloPay :: ERROR FETCHING TRANSACTION EVENTS! ' . $e->getMessage());
-                    }
 
-                    $returnUrl = $this->url->link('checkout/success');
-                    break;
+                        $returnUrl = $this->url->link('checkout/success');
+                        break;
+                }
+
+                $this->model_checkout_order->addOrderHistory($this->session->data['order_id'], $order_status_id);
+                unset($this->session->data[static::HELLOPAY_PURCHASE_ID]);
             }
-
-            $this->model_checkout_order->addOrderHistory($this->session->data['order_id'], $order_status_id);
         }
 
         $this->response->redirect($returnUrl);

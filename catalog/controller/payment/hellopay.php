@@ -116,11 +116,8 @@ class ControllerPaymentHelloPay extends Controller
                 $dataView['action'] = $response->getCheckoutUrl();
                 $dataView['button_confirm'] = $this->language->get('button_confirm');
                 $this->session->data[static::HELLOPAY_PURCHASE_ID] = $response->getPurchaseId();
-                // update order status to pending
-                $this->model_checkout_order->addOrderHistory(
-                    $this->session->data['order_id'],
-                    $this->config->get('hellopay_order_status_id')
-                );
+                // add order into the missing list
+                $this->model_checkout_order->addOrderHistory($this->session->data['order_id'], 0);
             } else {
                 $dataView['error'] = true;
                 $dataView['errorMessage'] = $this->helloPay->getLastMessage();
@@ -147,7 +144,7 @@ class ControllerPaymentHelloPay extends Controller
 
         $status = $this->request->get['paymentStatus'];
 
-        $order_status_id = $this->config->get('hellopay_order_status_id');
+        $order_status_id = 0;
         $returnUrl = $this->url->link('checkout/success');
 
         // only update for helloPay transaction
@@ -191,7 +188,12 @@ class ControllerPaymentHelloPay extends Controller
                         break;
                 }
 
-                $this->model_checkout_order->addOrderHistory($this->session->data['order_id'], $order_status_id);
+                if ($order_status_id > 0) {
+                    $this->model_checkout_order->addOrderHistory(
+                        $this->session->data['order_id'],
+                        $order_status_id
+                    );
+                }
                 unset($this->session->data[static::HELLOPAY_PURCHASE_ID]);
             }
         }

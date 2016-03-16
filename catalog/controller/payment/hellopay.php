@@ -116,6 +116,11 @@ class ControllerPaymentHelloPay extends Controller
                 $dataView['action'] = $response->getCheckoutUrl();
                 $dataView['button_confirm'] = $this->language->get('button_confirm');
                 $this->session->data[static::HELLOPAY_PURCHASE_ID] = $response->getPurchaseId();
+                // update order status to pending
+                $this->model_checkout_order->addOrderHistory(
+                    $this->session->data['order_id'],
+                    $this->config->get('hellopay_order_status_id')
+                );
             } else {
                 $dataView['error'] = true;
                 $dataView['errorMessage'] = $this->helloPay->getLastMessage();

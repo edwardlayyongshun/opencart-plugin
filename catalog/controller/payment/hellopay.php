@@ -131,11 +131,7 @@ class ControllerPaymentHelloPay extends Controller
             $this->log->write('helloPay :: ERROR CREATING PURCHASE! ' . $e->getMessage());
         }
 
-        if (file_exists(DIR_TEMPLATE . $this->config->get('config_template') . '/template/payment/hellopay.tpl')) {
-            return $this->load->view($this->config->get('config_template') . '/template/payment/hellopay.tpl', $dataView);
-        } else {
-            return $this->load->view('default/template/payment/hellopay.tpl', $dataView);
-        }
+        return $this->load->view('payment/hellopay.tpl', $dataView);
     }
 
     /**

@@ -3,7 +3,9 @@ Plugin to integrate OpenCart with helloPay
 
 Check out the below link for details:
 
-https://www.hellopay.com.sg/api-documentation-with-php-library.html#overview
+Singapore - https://hellopay.io/api-documentation.html
+Philippines - https://ph.hellopay.io/api-documentation.html
+Indonesia - https://id.hellopay.io/api-documentation.html
 
 ==========================================
 ### OpenCart Settings
